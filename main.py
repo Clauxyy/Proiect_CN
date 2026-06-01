@@ -1,7 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed May 27 21:40:56 2026
+import sys
+from PyQt5.QtWidgets import QApplication
+from WindowBisectie import MainWindow
 
-@author: CLAUDIA POPA
-"""
-
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    MWindow = MainWindow()
+    MWindow.show()
+    sys.exit(app.exec_())
