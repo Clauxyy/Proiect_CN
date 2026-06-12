@@ -73,7 +73,6 @@ class MainWindow(QMainWindow):
                 self.ui.FunctieCamp.setText(continut)
 
     def sterge_functie(self):
-        """Buton de clear pentru câmpul funcţiei"""
         self.ui.FunctieCamp.clear()
         self.ui.ACamp.clear()
         self.ui.BCamp.clear()

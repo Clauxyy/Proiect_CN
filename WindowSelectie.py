@@ -39,13 +39,11 @@ class SelectionWindow(QMainWindow):
         layout.addWidget(btn_exit, alignment=Qt.AlignCenter)
 
     def start_bisectie(self):
-        """Deschide fereastra pentru metoda bisectiei"""
         self.hide()
         self.bisectie_window = BisectieWindow(selection_window=self)
         self.bisectie_window.show()
 
     def start_coarda(self):
-        """Deschide fereastra pentru metoda coardei"""
         self.hide()
         self.coarda_window = CoardaWindow(selection_window=self)
         self.coarda_window.show()

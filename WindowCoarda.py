@@ -74,7 +74,6 @@ class MainWindow(QMainWindow):
                 self.ui.FunctieCamp.setText(continut)
 
     def sterge_functie(self):
-        """Buton de clear pentru câmpul funcţiei"""
         self.ui.FunctieCamp.clear()
         self.ui.ACamp.clear()
         self.ui.BCamp.clear()
@@ -172,10 +171,6 @@ class MainWindow(QMainWindow):
         self.deseneaza_functie()
 
     def coarda(self, f, a, b, nr_iter_max, epsilon, nr_zecimale):
-        """
-        Metoda coardei cu punct fix = b, pornind din a.
-        Formula: x_{n+1} = x_n - f(x_n)*(x_n - b)/(f(x_n)-f(b))
-        """
         try:
             fa = float(f(a))
             fb = float(f(b))
