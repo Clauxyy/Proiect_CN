@@ -18,8 +18,8 @@ class MainWindow(QMainWindow):
         self.b = None
         self.functie = None
         self.f_str = None
-        self.x_aprox = []          # lista aproximărilor succesive (x_n)
-        self.puncte_fix = []       # stocăm punctul fix (b) pentru fiecare pas
+        self.x_aprox = []
+        self.puncte_fix = []
         self.curent_index = 0
         self.timer = QTimer()
         self.timer.setInterval(500)
@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
         # Conectare semnale
         self.ui.Itereaza.clicked.connect(self.ruleaza)
         self.ui.Incarca.clicked.connect(self.citeste_fisier)
-        self.ui.inapoibtn.clicked.connect(self.sterge_functie)   # buton "Inapoi" = clear
+        self.ui.inapoibtn.clicked.connect(self.sterge_functie)
         self.ui.RadioIteratii.toggled.connect(self.actualizeaza_campuri)
         self.ui.RadioZecimale.toggled.connect(self.actualizeaza_campuri)
         self.ui.SalveazaGrafic.clicked.connect(self.salveaza_erori)
@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
             with open(cale, "r", encoding="utf-8") as f:
                 continut = f.read().strip()
                 self.fisier_text = continut
-                self.ui.FunctieCamp.setText(continut)   # afișează în câmp
+                self.ui.FunctieCamp.setText(continut)
 
     def sterge_functie(self):
         """Buton de clear pentru câmpul funcţiei"""
@@ -99,7 +99,6 @@ class MainWindow(QMainWindow):
             self.ui.label_rez.setText("Interval invalid!")
             return
 
-        # Verificare a > b
         if a_raw > b_raw:
             self.ui.label_rez.setText("Eroare: a trebuie să fie mai mic decât b!")
             return
@@ -149,7 +148,7 @@ class MainWindow(QMainWindow):
             return
 
         self.x_aprox = aproximari
-        self.puncte_fix = puncte_fix   # toate sunt egale cu b
+        self.puncte_fix = puncte_fix
 
         rad_exacta = self.radacina_exacta(rezultat)
         linie_exacta = f"  |  radacina exacta: {rad_exacta:.10f}  |  eroare fata de exacta: {abs(rezultat - rad_exacta):.2e}" if rad_exacta is not None else ""
@@ -199,7 +198,7 @@ class MainWindow(QMainWindow):
         f_fix = fb
         x_curr = a
         aproximari = [x_curr]
-        puncte_fix = [fix] * (limita + 1)   # toate sunt b, dar lungimea se va ajusta
+        puncte_fix = [fix] * (limita + 1)
         erori_abs = []
         erori_rel = []
 
@@ -209,7 +208,7 @@ class MainWindow(QMainWindow):
                 break
             x_next = x_curr - fx * (x_curr - fix) / (fx - f_fix)
             aproximari.append(x_next)
-            puncte_fix[i] = fix   # în realitate tot b
+            puncte_fix[i] = fix
 
             err_abs = abs(x_next - x_curr)
             erori_abs.append(err_abs)
@@ -225,7 +224,6 @@ class MainWindow(QMainWindow):
 
             x_curr = x_next
 
-        # Reducem listele la dimensiunea reală
         puncte_fix = puncte_fix[:len(aproximari)]
         nr_iter = len(aproximari) - 1
         c = aproximari[-1]
@@ -337,7 +335,7 @@ class MainWindow(QMainWindow):
 
         x_n = self.x_aprox[self.curent_index]
         f_n = self.functie(x_n)
-        fix = self.puncte_fix[self.curent_index]   # este mereu b
+        fix = self.puncte_fix[self.curent_index]
         f_fix = self.functie(fix)
 
         self.punct_curent.set_data([x_n], [f_n])
