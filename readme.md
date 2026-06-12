@@ -53,3 +53,5 @@
   * numărul de zecimale garantate (dacă este cazul)
   * o aproximație a rădăcinii exacte
   * eroarea față de aceasta
+
+**Verificări**: Sunt implementate verificări precum: funcția trebuie introdusă într-un format acceptat de SymPy, nu sunt acceptate câmpuri goale, dacă a>b, intervalul nu este corectat (în schimb se afișează o eroare), este obligatorie alegerea unui tip de precizie și a unui tip de eroare, câmpul pentru numărul de iterații acceptă doar valori numerice pozitive, toleranța trebuie introdusă in formă științifică (ex: 1e-3), iar metoda nu este aplicată dacă f(a)\*f(b) >= 0
