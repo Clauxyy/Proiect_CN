@@ -14,7 +14,6 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         self.selection_window = selection_window
-        self.fisier_text = None
         self.a = None
         self.b = None
         self.functie = None
@@ -71,9 +70,7 @@ class MainWindow(QMainWindow):
         if cale:
             with open(cale, "r", encoding="utf-8") as f:
                 continut = f.read().strip()
-                self.fisier_text = continut
                 self.ui.FunctieCamp.setText(continut)
-
 
     def sterge_functie(self):
         """Buton de clear pentru câmpul funcţiei"""
@@ -86,7 +83,7 @@ class MainWindow(QMainWindow):
 
     def ruleaza(self):
         text = self.ui.FunctieCamp.text().strip()
-        sursa = text if text else (self.fisier_text or "")
+        sursa = text
         self.functie = transforma_functie(sursa)
         if self.functie is None:
             self.ui.label_rez.setText("Functie invalida sau lipsa!")
