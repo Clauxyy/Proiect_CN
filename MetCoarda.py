@@ -94,9 +94,9 @@ class Ui_MainWindow(object):
         self.label_rez.setWordWrap(True)
         self.leftVLayout.addWidget(self.label_rez)
 
-        self.inapoibtn = QtWidgets.QPushButton("Inapoi")
-        self.inapoibtn.setObjectName("inapoibtn")
-        self.leftVLayout.addWidget(self.inapoibtn)
+        self.clearbtn = QtWidgets.QPushButton("Clear")
+        self.clearbtn.setObjectName("clearbtn")
+        self.leftVLayout.addWidget(self.clearbtn)
 
         self.leftVLayout.addStretch()
         self.mainHLayout.addWidget(self.leftPanel)

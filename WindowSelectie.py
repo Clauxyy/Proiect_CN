@@ -40,12 +40,12 @@ class SelectionWindow(QMainWindow):
 
     def start_bisectie(self):
         """Deschide fereastra pentru metoda bisectiei"""
-        self.bisectie_window = BisectieWindow()
+        self.hide()
+        self.bisectie_window = BisectieWindow(selection_window=self)
         self.bisectie_window.show()
-        self.close()
 
     def start_coarda(self):
         """Deschide fereastra pentru metoda coardei"""
-        self.coarda_window = CoardaWindow()
+        self.hide()
+        self.coarda_window = CoardaWindow(selection_window=self)
         self.coarda_window.show()
-        self.close()

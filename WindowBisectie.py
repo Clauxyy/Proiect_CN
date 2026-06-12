@@ -8,11 +8,12 @@ from matplotlib.figure import Figure
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, selection_window=None):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
+        self.selection_window = selection_window
         self.fisier_text = None
         self.a = None
         self.b = None
@@ -41,6 +42,7 @@ class MainWindow(QMainWindow):
 
         self.ui.Itereaza.clicked.connect(self.ruleaza)
         self.ui.Incarca.clicked.connect(self.citeste_fisier)
+        self.ui.clearbtn.clicked.connect(self.sterge_functie)
         self.ui.RadioIteratii.toggled.connect(self.actualizeaza_campuri)
         self.ui.RadioZecimale.toggled.connect(self.actualizeaza_campuri)
         self.ui.SalveazaGrafic.clicked.connect(self.salveaza_erori)
@@ -50,6 +52,11 @@ class MainWindow(QMainWindow):
         self.ui.SalveazaAnim.clicked.connect(self.salveaza_animatie)
 
         self.actualizeaza_campuri()
+
+    def closeEvent(self, event):
+        if self.selection_window is not None:
+            self.selection_window.show()
+        event.accept()
 
     def actualizeaza_campuri(self):
         e_iter = self.ui.RadioIteratii.isChecked()
@@ -63,7 +70,19 @@ class MainWindow(QMainWindow):
         cale, _ = QFileDialog.getOpenFileName(self, "Alege fisier", "", "Text Files (*.txt);;All Files (*)")
         if cale:
             with open(cale, "r", encoding="utf-8") as f:
-                self.fisier_text = f.read().strip()
+                continut = f.read().strip()
+                self.fisier_text = continut
+                self.ui.FunctieCamp.setText(continut)
+
+
+    def sterge_functie(self):
+        """Buton de clear pentru câmpul funcţiei"""
+        self.ui.FunctieCamp.clear()
+        self.ui.ACamp.clear()
+        self.ui.BCamp.clear()
+        self.ui.NrIteratiiCamp.clear()
+        self.ui.ZecimaleCamp.clear()
+        self.ui.TolerantaCamp.clear()
 
     def ruleaza(self):
         text = self.ui.FunctieCamp.text().strip()
@@ -93,6 +112,8 @@ class MainWindow(QMainWindow):
         if text_nr:
             try:
                 nr_iteratii_max = int(text_nr)
+                if int(text_nr) <= 0:
+                    raise Exception
             except Exception:
                 self.ui.label_rez.setText("Nr. iteratii invalid!")
                 return

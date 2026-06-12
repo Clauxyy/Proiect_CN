@@ -8,11 +8,12 @@ from matplotlib.figure import Figure
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, selection_window=None):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
+        self.selection_window = selection_window
         self.fisier_text = None
         self.a = None
         self.b = None
@@ -25,7 +26,6 @@ class MainWindow(QMainWindow):
         self.timer.setInterval(500)
         self.timer.timeout.connect(self._pas_animatie)
 
-        # Grafice
         self.fig_erori = Figure(tight_layout=True)
         self.canvas_erori = FigureCanvas(self.fig_erori)
         self.canvas_erori.setMinimumSize(300, 250)
@@ -41,10 +41,9 @@ class MainWindow(QMainWindow):
         self.canvas_functie.setMinimumSize(600, 220)
         self.ui.verticalLayout_4.addWidget(self.canvas_functie)
 
-        # Conectare semnale
         self.ui.Itereaza.clicked.connect(self.ruleaza)
         self.ui.Incarca.clicked.connect(self.citeste_fisier)
-        self.ui.inapoibtn.clicked.connect(self.sterge_functie)
+        self.ui.clearbtn.clicked.connect(self.sterge_functie)
         self.ui.RadioIteratii.toggled.connect(self.actualizeaza_campuri)
         self.ui.RadioZecimale.toggled.connect(self.actualizeaza_campuri)
         self.ui.SalveazaGrafic.clicked.connect(self.salveaza_erori)
@@ -54,6 +53,11 @@ class MainWindow(QMainWindow):
         self.ui.SalveazaAnim.clicked.connect(self.salveaza_animatie)
 
         self.actualizeaza_campuri()
+
+    def closeEvent(self, event):
+        if self.selection_window is not None:
+            self.selection_window.show()
+        event.accept()
 
     def actualizeaza_campuri(self):
         e_iter = self.ui.RadioIteratii.isChecked()
@@ -79,9 +83,6 @@ class MainWindow(QMainWindow):
         self.ui.NrIteratiiCamp.clear()
         self.ui.ZecimaleCamp.clear()
         self.ui.TolerantaCamp.clear()
-        self.fisier_text = None
-        self.functie = None
-        self.f_str = None
 
     def ruleaza(self):
         text = self.ui.FunctieCamp.text().strip()
