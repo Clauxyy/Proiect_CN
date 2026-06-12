@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QMainWindow, QFileDialog
 from PyQt5.QtCore import QTimer
 from MetCoarda import Ui_MainWindow
 import numpy as np
-from sympy import sympify, symbols, lambdify, nsolve
+from sympy import sympify, symbols, lambdify, nsolve, diff
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -17,13 +17,14 @@ class MainWindow(QMainWindow):
         self.a = None
         self.b = None
         self.functie = None
-        self.x_anim = None
-        self.y_anim = None
-        self.cadru_curent = 0
+        self.f_str = None
+        self.x_aprox = []          # lista aproximărilor succesive (x_n)
+        self.curent_index = 0      # indexul curent în animație
         self.timer = QTimer()
-        self.timer.setInterval(20)
+        self.timer.setInterval(500)  # 500 ms între pași (mai lent pentru a observa coarda)
         self.timer.timeout.connect(self._pas_animatie)
 
+        # Grafice
         self.fig_erori = Figure(tight_layout=True)
         self.canvas_erori = FigureCanvas(self.fig_erori)
         self.canvas_erori.setMinimumSize(300, 250)
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow):
         self.canvas_functie.setMinimumSize(600, 220)
         self.ui.verticalLayout_4.addWidget(self.canvas_functie)
 
+        # Conectare semnale
         self.ui.Itereaza.clicked.connect(self.ruleaza)
         self.ui.Incarca.clicked.connect(self.citeste_fisier)
         self.ui.RadioIteratii.toggled.connect(self.actualizeaza_campuri)
@@ -69,6 +71,7 @@ class MainWindow(QMainWindow):
         text = self.ui.FunctieCamp.text().strip()
         sursa = text if text else (self.fisier_text or "")
         self.functie = transforma_functie(sursa)
+        self.f_str = sursa
         if self.functie is None:
             self.ui.label_rez.setText("Functie invalida sau lipsa!")
             return
@@ -150,15 +153,22 @@ class MainWindow(QMainWindow):
 
     def coarda(self, f, a, b, nr_iter_max, epsilon, nr_zecimale):
         """
-        Metoda falsei poziții (coardei).
+        Implementarea metodei coardei conform laboratorului (cazul f(a)f''(a)<0):
+            x0 = a
+            x_{n+1} = x_n - f(x_n)*(x_n - b)/(f(x_n)-f(b))
         Returnează (c, erori_abs, erori_rel, numar_iteratii)
         """
         try:
-            fa, fb = float(f(a)), float(f(b))
-        except Exception:
+            fx0 = float(f(a))
+            fx1 = float(f(b))
+        except Exception as e:
+            print(e)
             return None, None, None, 0
 
-        if fa * fb >= 0:
+        x0 = a
+        x1 = b
+
+        if fx0 * fx1 >= 0:
             return None, None, None, 0
 
         tol_oprire = None
@@ -168,41 +178,40 @@ class MainWindow(QMainWindow):
             tol_oprire = epsilon
 
         limita = nr_iter_max if nr_iter_max else 10000
-        iteratii = []
+
+        aproximari = [x0]
         erori_abs = []
         erori_rel = []
-        c_prev = a
 
         for i in range(1, limita + 1):
-            c = (a * fb - b * fa) / (fb - fa)
-            iteratii.append(c)
+            x = symbols('x')
+            fderiv2x = lambdify(x, diff(self.f_str, x, 2))
 
-            if i > 1:
-                err = abs(c - c_prev)
-                erori_abs.append(err)
-                if abs(c) > 1e-12:
-                    erori_rel.append(err / abs(c))
-                else:
-                    erori_rel.append(err)
+            x0 = aproximari[-1]
+            fx0 = f(x0)
+            if fx0 * fderiv2x(x0) < 0:
+                x2 = x0 - fx0 * (x0 - b) / (fx0 - f(b))
+            elif fx1 * fderiv2x(x1) < 0:
+                x2 = x0 - fx0 * (x0 - a) / (f(x0) - f(a))
+            aproximari.append(x1)
 
-            fc = float(f(c))
-            if abs(fc) < 1e-15:
+            err_abs = abs(x2 - x1)
+            erori_abs.append(err_abs)
+            if abs(x1) > tol_oprire:
+                erori_rel.append(err_abs / abs(x1))
+            else:
+                erori_rel.append(err_abs)
+
+            if tol_oprire is not None and err_abs < tol_oprire:
                 break
 
-            if tol_oprire is not None:
-                if (b - a) / 2.0 < tol_oprire or (len(erori_abs) > 0 and erori_abs[-1] < tol_oprire):
-                    break
+            if abs(f(x1)) < tol_oprire:
+                break
 
-            if fa * fc < 0:
-                b = c
-                fb = fc
-            else:
-                a = c
-                fa = fc
+        c = aproximari[-1]
+        nr_iter = len(aproximari) - 1
 
-            c_prev = c
-
-        return c, erori_abs, erori_rel, len(iteratii)
+        return c, erori_abs, erori_rel, nr_iter
 
     def radacina_exacta(self, c):
         try:
@@ -266,87 +275,193 @@ class MainWindow(QMainWindow):
         self.canvas_functie.draw()
 
     def pregateste_animatie(self):
-        if self.a is None or self.b is None or self.functie is None:
-            self.x_anim = None
+        """
+        Pregătește datele pentru animația metodei coardei.
+        Vom folosi lista self.x_aprox (generată în timpul rulării) și
+        vom desena pentru fiecare pas:
+            - graficul funcției
+            - coarda dintre (x_n, f(x_n)) și (b, f(b))
+            - punctul (x_n, 0) pe axa Ox
+        """
+        if self.functie is None or self.a is None or self.b is None:
+            self.x_aprox = []
             return
-        self.x_anim = np.linspace(self.a, self.b, 200)
+        # Refacem metoda coardei pentru a obține toate aproximările (fără a rula din nou UI)
+        # Folosim ultimele valori memorate (a, b, functie) și parametrii de precizie setați în UI.
+        # Pentru a nu repeta cod, vom apela din nou coarda cu un număr mare de iterații,
+        # dar ne interesează doar lista aproximărilor.
+        # Observație: În `ruleaza` am stocat deja rezultatul, dar nu am păstrat lista completă.
+        # Vom rula din nou algoritmul pentru a genera lista `aproximari`.
+        text = self.ui.FunctieCamp.text().strip()
+        sursa = text if text else (self.fisier_text or "")
+        f = transforma_functie(sursa)
+        if f is None:
+            self.x_aprox = []
+            return
+
+        # Obținem din nou parametrii (similar cu ruleaza, dar fără a actualiza UI)
         try:
-            self.y_anim = self.functie(self.x_anim).astype(float)
+            a = float(sympify(self.ui.ACamp.text().strip()))
+            b = float(sympify(self.ui.BCamp.text().strip()))
+            a, b = sorted([a, b])
+        except:
+            self.x_aprox = []
+            return
+
+        nr_iter_max = 10000  # suficient de mare pentru a capta toate iterațiile
+        epsilon = None
+        nr_zecimale = None
+        if self.ui.RadioIteratii.isChecked():
+            try:
+                epsilon = float(self.ui.TolerantaCamp.text().strip())
+            except:
+                epsilon = None
+        elif self.ui.RadioZecimale.isChecked():
+            try:
+                nr_zecimale = int(self.ui.ZecimaleCamp.text().strip())
+            except:
+                nr_zecimale = None
+
+        # Reutilizăm metoda coarda pentru a obține lista completă (ignorăm returnările)
+        try:
+            fa = float(f(a))
+            fb = float(f(b))
+            if fa * fb >= 0:
+                self.x_aprox = []
+                return
+            tol_oprire = None
+            if nr_zecimale is not None:
+                tol_oprire = 10 ** (-(nr_zecimale + 1))
+            elif epsilon is not None:
+                tol_oprire = epsilon
+            limita = nr_iter_max
+            aproximari = [a]
+            for i in range(1, limita + 1):
+                x_prev = aproximari[-1]
+                fx = f(x_prev)
+                x_nou = x_prev - fx * (x_prev - b) / (fx - fb)
+                aproximari.append(x_nou)
+                err_abs = abs(x_nou - x_prev)
+                if tol_oprire is not None and err_abs < tol_oprire:
+                    break
+                if abs(f(x_nou)) < 1e-15:
+                    break
+            self.x_aprox = aproximari
         except Exception:
-            self.x_anim = None
+            self.x_aprox = []
 
     def start_animatie(self):
-        if self.x_anim is None:
+        if not self.x_aprox or len(self.x_aprox) < 2:
             self.ui.label_rez.setText("Ruleaza mai intai metoda coardei!")
             return
         self.stop_animatie()
-        self.cadru_curent = 0
+        self.curent_index = 0
 
-        y_fin = self.y_anim[np.isfinite(self.y_anim)]
-        if len(y_fin) == 0:
-            return
-        margin = max((y_fin.max() - y_fin.min()) * 0.1, 0.1)
-
+        # Preparam figura de animație
         self.fig_anim.clear()
         self.ax_anim = self.fig_anim.add_subplot(111)
-        self.ax_anim.set_xlim(self.x_anim[0], self.x_anim[-1])
-        self.ax_anim.set_ylim(y_fin.min() - margin, y_fin.max() + margin)
-        self.ax_anim.axhline(0, color="black", lw=0.8, ls="--")
-        self.ax_anim.set_title("Animatie functie")
+
+        # Desenăm graficul funcției pe intervalul [a, b]
+        x_vals = np.linspace(self.a, self.b, 500)
+        y_vals = self.functie(x_vals)
+        self.ax_anim.plot(x_vals, y_vals, 'b-', linewidth=2, label='f(x)')
+        self.ax_anim.axhline(0, color='k', linestyle='--', linewidth=0.8)
+        self.ax_anim.axvline(0, color='k', linestyle='--', linewidth=0.8)
+        self.ax_anim.set_xlim(self.a, self.b)
+        # Setăm limitele y cu puțin spațiu
+        ymin = min(y_vals.min(), 0) - 0.2 * abs(y_vals.min())
+        ymax = max(y_vals.max(), 0) + 0.2 * abs(y_vals.max())
+        self.ax_anim.set_ylim(ymin, ymax)
+        self.ax_anim.set_title("Metoda Coardei - Animație")
         self.ax_anim.set_xlabel("x")
         self.ax_anim.set_ylabel("f(x)")
         self.ax_anim.grid(True, alpha=0.3)
-        self.linie_anim, = self.ax_anim.plot([], [], color="#2196F3", lw=2)
+        self.ax_anim.legend()
+
+        # Obiecte grafice care se vor actualiza la fiecare pas
+        self.punct_curent, = self.ax_anim.plot([], [], 'ro', markersize=8, label='x_n')
+        self.coarda_line, = self.ax_anim.plot([], [], 'g--', linewidth=1.5, label='coarda')
+        self.text_annot = self.ax_anim.annotate('', xy=(0, 0), xytext=(10, 10),
+                                                textcoords='offset points',
+                                                fontsize=10, color='red')
+
         self.fig_anim.tight_layout()
         self.canvas_anim.draw()
         self.timer.start()
 
     def _pas_animatie(self):
-        if self.cadru_curent >= len(self.x_anim):
+        if self.curent_index >= len(self.x_aprox):
             self.timer.stop()
+            # La final, arătăm soluția
+            sol = self.x_aprox[-1]
+            self.text_annot.set_text(f"Soluție: {sol:.6f}")
+            self.canvas_anim.draw_idle()
             return
-        self.linie_anim.set_data(
-            self.x_anim[:self.cadru_curent + 1],
-            self.y_anim[:self.cadru_curent + 1]
-        )
+
+        x_n = self.x_aprox[self.curent_index]
+        f_n = self.functie(x_n)
+        b_fixed = self.b
+        f_b = self.functie(b_fixed)
+
+        # Actualizăm punctul curent
+        self.punct_curent.set_data([x_n], [0])
+
+        # Desenăm coarda între (x_n, f_n) și (b_fixed, f_b)
+        self.coarda_line.set_data([x_n, b_fixed], [f_n, f_b])
+
+        # Adăugăm un text care arată iterația curentă
+        self.text_annot.set_text(f"n={self.curent_index}, x={x_n:.6f}")
+        self.text_annot.set_position((x_n, f_n))
+
         self.canvas_anim.draw_idle()
-        self.cadru_curent += 1
+        self.curent_index += 1
 
     def stop_animatie(self):
         self.timer.stop()
 
     def salveaza_animatie(self):
-        if self.x_anim is None:
+        if not self.x_aprox:
             self.ui.label_rez.setText("Nu exista animatie de salvat!")
             return
-        cale, _ = QFileDialog.getSaveFileName(self, "Salveaza animatie", "animatie.gif", "GIF (*.gif)")
+        cale, _ = QFileDialog.getSaveFileName(self, "Salveaza animatie", "animatie_coarda.gif", "GIF (*.gif)")
         if not cale:
             return
         import matplotlib.animation as manim
-        self.fig_anim.clear()
-        ax = self.fig_anim.add_subplot(111)
-        y_fin = self.y_anim[np.isfinite(self.y_anim)]
-        margin = max((y_fin.max() - y_fin.min()) * 0.1, 0.1)
-        ax.set_xlim(self.x_anim[0], self.x_anim[-1])
-        ax.set_ylim(y_fin.min() - margin, y_fin.max() + margin)
-        ax.axhline(0, color="black", lw=0.8, ls="--")
-        ax.set_title("Animatie functie")
-        ax.set_xlabel("x")
-        ax.set_ylabel("f(x)")
-        ax.grid(True, alpha=0.3)
-        linie, = ax.plot([], [], color="#2196F3", lw=2)
+        # Reconstruim animația pentru salvare
+        fig_anim_save = Figure(tight_layout=True)
+        ax_save = fig_anim_save.add_subplot(111)
+        x_vals = np.linspace(self.a, self.b, 500)
+        y_vals = self.functie(x_vals)
+        ax_save.plot(x_vals, y_vals, 'b-', linewidth=2)
+        ax_save.axhline(0, color='k', linestyle='--')
+        ax_save.axvline(0, color='k', linestyle='--')
+        ax_save.set_xlim(self.a, self.b)
+        ymin = min(y_vals.min(), 0) - 0.2 * abs(y_vals.min())
+        ymax = max(y_vals.max(), 0) + 0.2 * abs(y_vals.max())
+        ax_save.set_ylim(ymin, ymax)
+        ax_save.grid(True, alpha=0.3)
+        punct, = ax_save.plot([], [], 'ro', markersize=8)
+        coarda_line, = ax_save.plot([], [], 'g--', linewidth=1.5)
+        text_anim = ax_save.annotate('', xy=(0, 0), xytext=(10, 10), textcoords='offset points')
 
-        def update(i):
-            linie.set_data(self.x_anim[:i + 1], self.y_anim[:i + 1])
-            return (linie,)
+        def update(frame):
+            x_n = self.x_aprox[frame]
+            f_n = self.functie(x_n)
+            punct.set_data([x_n], [0])
+            coarda_line.set_data([x_n, self.b], [f_n, self.functie(self.b)])
+            text_anim.set_text(f"n={frame}, x={x_n:.6f}")
+            text_anim.set_position((x_n, f_n))
+            return punct, coarda_line, text_anim
 
-        anim = manim.FuncAnimation(self.fig_anim, update, frames=len(self.x_anim), interval=20, blit=True)
+        anim = manim.FuncAnimation(fig_anim_save, update, frames=len(self.x_aprox), interval=500, blit=False)
         try:
             anim.save(cale, writer="pillow", dpi=100)
             self.ui.label_rez.setText("Animatie salvata!")
         except Exception as e:
             self.ui.label_rez.setText(f"Eroare: {e}")
-        self.canvas_anim.draw()
+        finally:
+            import matplotlib.pyplot as plt
+            plt.close(fig_anim_save)
 
     def salveaza_erori(self):
         cale, _ = QFileDialog.getSaveFileName(self, "Salveaza grafic erori", "grafic_erori.png",
